@@ -1,0 +1,791 @@
+---
+title: "Study on the strategic behaviors of Blade industry at Yakuraisan No. 8 site"
+subtitle: 薬來山No.8遺跡における石刃石器群の行動戦略ー石刃・剥片分割の行動論的意義ー 宮城考古学第23号　公開用　分析データ
+author: "熊谷亮介・鈴木秋平"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    self_contained: true
+---
+```{r setup, include=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+```
+<br />
+
+# 1.Introduction / はじめに {.tabset .tabset-fade .tabset-pills}  
+## Readme  
+
+　本稿は宮城考古学第23号に掲載された**「薬來山No.8遺跡における石刃石器群の行動戦略ー石刃・剥片分割の行動論的意義ー」** の分析に用いたデータ（csv)とRのスクリプトを再現性・透明性を確保するために公開するものです。  
+　
+コード実行またはRmdファイルからknitする場合、パッケージのインストールのほか、エクセルファイルを含むデータをGithubおよび公開されたWebサイトからダウンロードする工程があります。インターネットに接続した環境で利用してください。  また、最新のR言語をインストールしたうえで利用してください。
+
+## Environment
+2021/1/31
+
+* Windows 10 Home 1909
+
+* R version ‘4.0.3’ (Bunny-Wunnies Freak Out)　[link](https://cran.r-project.org/src/base/R-4)
+
+* RStudio
+Version 1.3.1093 [link](www.rstudio.com)
+
+## Contact / Sources
+
+* Ryosuke KUMAGAI / 熊谷亮介  
+　宮城県教育庁文化財課
+　Email: ryosuke.kumagai28[@]gmail.com  
+　
+* Github:ryosuke1914/ YY8 [link](https://github.com/ryosuke1914/YY8)  
+
+* ReserchMap [link](https://researchmap.jp/Kumagai.r)  
+
+# 2.Prepare / 事前準備 {.tabset .tabset-fade .tabset-pills}
+## Install & library packages
+<br />
+
+  解析・描画に必要なパッケージのリストを提示します。  
+　下記のスクリプトでは、あなたの環境にインストールされていないパッケージを検索・抽出してインストールし、また一括で呼び出し（library)します。
+
+```{r install.pakages}
+targetPackages <- c("formatR","RCurl","spatstat","cluster","tidyr","xtable","DT","tidyverse",   
+                    "ggmap","ggspatial","sf","shadowtext","ggforce","patchwork","readxl",
+                    "maptools","spsurvey","readr","MASS","ggsn","rio","FactoMineR","factoextra","rmdformats","stringr","rmarkdown")
+newPackages <- targetPackages[!(targetPackages %in% installed.packages()[,"Package"])]
+if(length(newPackages)) install.packages(newPackages, repos = "http://cran.us.r-project.org")
+for(package in targetPackages) library(package, character.only = T)
+
+```
+
+## Downroading Data
+　専用のフォルダをWD内に作成し、各種データをダウンロード。
+
+```{r downroad}
+
+#　データを保存するためのフォルダをWD内に作成
+#　再帰処理回避のため既にある場合は省略
+if(charmatch("YY8-dataset",
+             list.files(all.files = TRUE),
+             nomatch = 0)== 0) {  
+  dir.create("YY8-dataset")
+}
+
+#　日本地図：rdsファイルのダウンロード
+#　既にデータをダウンロード済みの場合は省略
+list <- list.files("YY8-dataset", full.names=T)
+if(charmatch("YY8-dataset/jpn.rds", 
+             list, nomatch = 0) == 0) {  
+  download.file("https://biogeo.ucdavis.edu/data/gadm3.6/Rsp/gadm36_JPN_1_sp.rds",
+  destfile = "YY8-dataset/jpn.rds")
+}
+
+# 属性表CSVのダウンロード（https://github.com/ryosuke1914/YY8)
+download.file("https://raw.githubusercontent.com/ryosuke1914/YY8/master/YY8-all.csv",
+                destfile = "YY8-dataset/YY8-all.csv",method = "curl")
+download.file("https://raw.githubusercontent.com/ryosuke1914/YY8/master/YY8-Refitted.csv",
+                destfile = "YY8-dataset/YY8-Refitted.csv",method = "curl")
+# 日本旧石器時代遺跡DB（東北地方）のダウンロード（日本旧石器学会HP)
+download.file("http://palaeolithic.jp/data/Excel/02_07_Tohoku.xls",
+                destfile = "YY8-dataset/Tohoku.xls",method = "curl")
+
+```
+
+# 3.Maps / 遺跡地図の描画
+　山形県・宮城県における旧石器時代遺跡の分布図を、日本旧石器学会が発行するDBをもとに作成します。  
+　また、薬來山麓の旧石器時代遺跡群を拡大した図を作成し、レイアウトします。
+
+## a.データの加工{.tabset .tabset-fade .tabset-pills}
+
+
+###  緯度経度の変換
+　日本旧石器学会HPからダウンロードしたDBを読み込み、両県の緯度経度（土分秒）を10進法記法に変換する。
+
+```{r maps 1}
+
+t<-c(rep("text",9),rep("numeric",2),"text","numeric",rep("text",25),"date",rep("text",3))
+
+Miyagimap <- read_excel("YY8-dataset/Tohoku.xls",sheet=5,col_types = t)
+Yamagatamap <- read_excel("YY8-dataset/Tohoku.xls",sheet=9,col_types = t)
+
+lat1 <- as.numeric(str_sub(Miyagimap$緯度, start=1, end=2))
+lat2 <- as.numeric(str_sub(Miyagimap$緯度, start=3, end=4))
+lat3 <- as.numeric(str_sub(Miyagimap$緯度, start=5, end=6))
+
+m_lat <- lat1 + (lat2+lat3/60)/60
+
+lon1 <- as.numeric(str_sub(Miyagimap$経度, start=1, end=3))
+lon2 <- as.numeric(str_sub(Miyagimap$経度, start=4, end=5))
+lon3 <- as.numeric(str_sub(Miyagimap$経度, start=6, end=7))
+m_lon <- lon1+ (lon2+lon3/60)/60
+m<-data.frame(m_lat,m_lon)
+
+lat4 <- as.numeric(str_sub(Yamagatamap$緯度, start=1, end=2))
+lat5 <- as.numeric(str_sub(Yamagatamap$緯度, start=3, end=4))
+lat6 <- as.numeric(str_sub(Yamagatamap$緯度, start=5, end=6))
+y_lat <- lat4+ (lat5+lat6/60)/60
+
+
+lon4 <- as.numeric(str_sub(Yamagatamap$経度, start=1, end=3))
+lon5 <- as.numeric(str_sub(Yamagatamap$経度, start=4, end=5))
+lon6 <- as.numeric(str_sub(Yamagatamap$経度, start=6, end=7))
+y_lon <- lon4+ (lon5+lon6/60)/60
+y<-data.frame(y_lat,y_lon)
+
+
+```
+
+###  下図の作成(ggmap)
+　stamenmap から下図となる地図を読み込み、範囲・縮尺を設定。
+```{r maps 2}
+
+MY_map <- ggmap(get_stamenmap(maptype="terrain-background",
+                              color="bw",
+                              rbind(as.numeric(c(139.5, 37.7,141.7,39.2))),zoom = 10))
+
+MY_map2 <- ggmap(get_map(maptype="terrain",
+                         color="bw",
+           rbind(as.numeric(c(140.65, 
+           38.55,140.75, 38.6))),zoom = 12))
+MY_map
+MY_map2
+```
+
+###  県堺データを抽出(.rds)
+```{r maps3}
+jpn<-readr::read_rds("YY8-dataset/jpn.rds")
+
+yamagata<-jpn[jpn$NAME_1=="Yamagata",]%>%fortify()
+miyagi<-jpn[jpn$NAME_1=="Miyagi",]%>%fortify()
+```
+
+
+## b.遺跡地図の作成{.tabset .tabset-fade .tabset-pills}
+###  宮城県・山形県の広域地図
+　変換した緯度経度を元のデータに組み込み、両県の表を結合。
+また、薬來山No.8遺跡のみマークを変えるため抽出。
+```{r maps 4}
+Miyagimap[10:11]<-m
+Yamagatamap[10:11]<-y
+MY <- rbind(Miyagimap,Yamagatamap)
+MY2<- MY[10:11]
+colnames(MY2)<-c("lat","lon")
+No.8<-MY[MY$遺跡名=="薬莱山No.8遺跡",]
+```
+
+　宮城県・山形県の下図をもとに、県境・遺跡の位置などを描画。
+```{r maps6}
+MY_sites<-  
+  
+  MY_map +  
+  
+  geom_point(data = MY2, aes(x = lon, y = lat),  
+             
+             size = 0.3, color = "black")+  
+  
+  geom_rect(aes(xmin=140.65, xmax=140.8, ymin=38.55, ymax=38.6),  
+             fill=NA, color="white",lwd=0.1) +  
+  
+  geom_point(data=No.8,aes(x=経度,y=緯度),
+             size=1, shape=17, color="white")+  
+  
+  geom_polygon(aes(x=long,y=lat,group=group),
+               fill=NA, color="black", data=yamagata, lwd=0.1) +  
+  
+  geom_polygon(aes(x=long,y=lat,group=group),  
+               fill=NA,color="black",data=miyagi,lwd=0.1)+
+  geom_shadowtext(data = No.8,aes(x=経度,y=緯度,label = 遺跡名),size = 1,position =position_nudge(y = - 0.03))+
+  geom_segment(arrow = arrow(length = unit(3, "mm")), aes(x = 141.4, xend = 141.4,         y = 37.8, yend =37.9), colour = "black") + annotate("text", x = 141.4, 
+        y = 37.8, label = "N", colour = "black", size = 5)+
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text = element_text(size=3),
+        axis.ticks = element_blank())+
+  theme(aspect.ratio=1,plot.background = element_rect(fill = NA,color=NA),
+        panel.background = element_rect(fill = NA,color=NA))
+MY_sites
+```
+
+###  薬來山麓の拡大図
+　薬莱山麓の拡大図を描画します。各遺跡名も合わせて描画。
+```{r maps5}
+
+MY_site2<-MY_map2+
+  geom_point(data = MY, 
+             aes(x = 経度,
+                 y = 緯度),
+             size = 2,
+             color = "black")+
+  geom_rect(aes(xmin=140.65, xmax=140.8, ymin=38.55, ymax=38.6), fill=NA, color="white")+
+  geom_shadowtext(data = MY,aes(x=経度,y=緯度,label = 遺跡名),size = 1.5,position = position_nudge(y = - 0.002))+
+  geom_point(data=No.8,aes(x=経度,y=緯度),size=4,shape=17,color="white")+
+  geom_polygon(aes(x=long,y=lat,group=group),fill=NA,color="black",data=yamagata)+
+  geom_polygon(aes(x=long,y=lat,group=group),fill=NA,color="black",data=miyagi)+
+  coord_sf(xlim = c(140.65, 140.75), # define the range  
+           ylim = c(38.55, 38.6),
+           expand = F) +
+  scale_x_continuous(breaks = seq(140.65, 140.75, by = 0.1)) + 
+  scale_y_continuous(breaks = seq(38.55, 38.6, by = 0.05)) +
+  geom_segment(arrow = arrow(length = unit(1, "mm")), aes(x = 140.735, xend = 140.735,         y =  38.552, yend = 38.558), colour = "black") + annotate("text", x =140.735, y=38.552,label = "N", colour = "black", size = 5)+
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text = element_text(size=3),
+        axis.ticks = element_blank())+
+  theme(aspect.ratio=0.5,plot.background = element_rect(fill = NA,color=NA),
+        panel.background = element_rect(fill = NA,color=NA))
+MY_site2
+```
+
+### レイアウト表示
+package(patchwark)を用いてレイアウト
+```{r maps result}
+
+MY_sites+MY_site2 + plot_layout(ncol=2,widths = c(1,2))
+
+```
+
+
+#  4.Tables / 出土遺物の組成表を作成
+　薬來山No.8遺跡出土石器の属性表を読み込み、各種集計表を作成します。
+
+```{r table1}
+
+YY8 <- read.csv("YY8-dataset/YY8-all.csv",header=T)
+datatable(YY8,
+          filter = 'top',
+          caption = 'Table 0:薬莱山No.8遺跡出土石器属性表',
+          extensions = 'Scroller', options = list(
+  deferRender = TRUE,
+  dom = "frtiS",
+  scrollY = 200,
+  scrollX = TRUE,
+  scrollCollapse = TRUE,
+  pageLength=513
+    ))
+
+
+```
+
+##  a.器種組成表{.tabset .tabset-fade .tabset-pills}
+###  Table 1
+　出土石器全点（縄文含む）の器種組成表を作成
+```{r table2}
+
+YY8a <- YY8%>%
+  count(Concentration, Type)%>%
+  spread(Concentration,n)%>%
+  column_to_rownames(var="Type")
+YY8a[is.na(YY8a)] <- 0
+
+YY8b<-data.frame(YY8a,apply(YY8a,1,sum))
+YY8b<-rbind(YY8b,apply(YY8b,2,sum))
+rownames(YY8b) <- c(rownames(YY8a),"SUM")
+colnames(YY8b) <- c(1,2,3,"NA","SUM")
+
+prepare <- htmltools::withTags(table(
+  class = 'display',
+  thead(
+    tr(
+      th(rowspan = 2, 'Type'),
+      th(colspan = 5, 'Concentration'),
+      tr(
+        lapply(rep(c("1","2","3","NA","SUM"),1), th)
+      )
+    )
+  )))
+
+datatable(YY8b,
+          caption = 'Table 1: 石器組成表（全点）',
+          container = prepare, 
+          rownames = T,
+          extensions = 'Scroller', options = list(
+  deferRender = TRUE,
+  dom = "frtiS",
+  scrollY = 200,
+  scrollCollapse = TRUE 
+  ))
+
+```
+
+###  Table 2a
+　集中地点ごとの器種組成表を作成（第2表対応）
+```{r table3}
+
+Type<-c("BL", "CH", "CO","FL","PI","SP","Tools","Retouched","MF","Refitted")
+
+YY8c<- YY8 %>%
+  filter(Memo!="Jyomon" & !is.na(Concentration))%>%
+  count(Concentration,Type)%>%
+  spread(Concentration,n)%>%
+  column_to_rownames(var="Type")
+YY8c[is.na(YY8c)] <- 0
+
+
+MF1 <- YY8 %>%
+  filter(Memo!="Jyomon" & !is.na(Concentration) & MF!=0)%>%
+  count(Concentration,MF)%>%
+  spread(Concentration,n)
+MF2 <- MF1[-1]
+
+
+YY8d <- YY8c[c("SS","KN","ES"),]
+Tools <-apply(YY8d, 2, sum)
+
+YY8e <- YY8c[c("RBL","RF"),]
+Retouched <-apply(YY8e, 2, sum)
+
+Refitted <-c(12,5,10)
+
+YY8f <- YY8c[!(rownames(YY8c) %in% c("KN", "ES", "RF","RBL","SS")), ]
+YY8g <- rbind(YY8f,Tools,Retouched,MF2,Refitted)
+YY8h<-data.frame(YY8g,apply(YY8g,1,sum))
+YY8i<-rbind(YY8h,apply(YY8h,2,sum))
+rownames(YY8i) <- c(Type,"SUM")
+colnames(YY8i) <- c(1:3,"SUM")
+
+
+prepare2 <- htmltools::withTags(table(
+  class = 'display',
+  thead(
+    tr(
+      th(rowspan = 2, 'Type'),
+      th(colspan = 3, 'Concentration'),
+      tr(
+        lapply(rep(c("1","2","3","SUM"),1), th)
+      )
+    )
+  )))
+
+datatable(YY8i,
+          caption = 'Table 2a: 集中地点ごとの石器組成',
+          container = prepare2, 
+          rownames = T,
+          extensions = 'Scroller', options = list(
+  deferRender = TRUE,
+  dom = "frtiS",
+  scrollY = 200,
+  scrollCollapse = TRUE
+  ))
+
+```
+
+###  Table 2b
+　集中地点ごとの石器器種出現頻度表（パーセンテージ）（第2表対応）　
+```{r table4}
+YY8gpercentage <- as.data.frame(YY8g[-10, ]) %>% map_df(~.x/apply(YY8g[-10, ],2, sum))
+
+rownames(YY8gpercentage) <- Type[-10]
+colnames(YY8gpercentage) <- c(1, 2, 3)
+
+prepare3 <- htmltools::withTags(table(class = "display", thead(tr(th(rowspan = 2, 
+    "Type"), th(colspan = 3, "Concentration"), tr(lapply(rep(c("1", "2", "3"), 1), 
+    th))))))
+
+datatable(YY8gpercentage, caption = "Table 2b: 集中地点ごとの石器組成割合", container = prepare3, 
+    rownames = T, extensions = "Scroller", options = list(deferRender = TRUE, dom = "frtiS", 
+        scrollY = 200, scrollCollapse = TRUE)) %>% formatRound(columns = c("1", "2", 
+    "3"), digits = 3)   
+
+```
+
+*  主成分分析用のデータを作成
+```{r,PCAdata}
+PCA<-rbind(YY8gpercentage,Refitted)
+rownames(PCA)<-Type
+YY_PCA <- as.data.frame(t(PCA))
+                 
+```
+###  Table 3
+　母岩分類ごとの器種表を作成（第3表対応）
+```{r material}
+
+YY8j <-YY8%>%
+  filter(Memo!="Jyomon" & !is.na(X) & !is.na(Concentration), Mat_no<=16)%>%
+  count(Concentration,Mat_no)%>%
+  spread(Concentration,n)%>%
+  column_to_rownames(var="Mat_no")
+YY8j[is.na(YY8j)] <- 0
+
+
+table3<-data.frame(YY8j,apply(YY8j,1,sum))%>%
+  rbind(apply(YY8j,2,sum))
+colnames(table3)<- c(1:3,"SUM")
+rownames(table3)<-c(1:16,"SUM")
+
+
+prepare4 <- htmltools::withTags(table(
+  class = 'display',
+  thead(
+    tr(
+      th(rowspan = 2, 'Material No.'),
+      th(colspan = 3, 'Concentration'),
+      tr(
+        lapply(rep(c("1","2","3","SUM"),1), th)
+      )
+    )
+  )))
+
+
+datatable(table3,
+          caption = 'Table 3: 集中地点ごとの母岩の出現頻度',
+          container = prepare4, 
+          rownames = T,
+          extensions = 'Scroller', options = list(
+  deferRender = TRUE,
+  dom = "frtiS",
+  scrollY = 200,
+  scrollCollapse = TRUE
+  ))
+
+```
+
+# 5.Distribution / 遺物分布図
+　属性表から平面位置情報（XY)を用いて分布図を作成します。  
+　ここでは強調したい特徴ごとに複数の図を作図し、最終的に合成します。また、クラスター分析・K関数法による遺物分布の分析を行います。
+　
+
+##  a.データの加工
+　属性表から平面位置情報のある遺物を抽出
+```{r distribution1}
+YY8dis<-YY8%>%
+  filter(!is.na(X) & Memo!="Jyomon")
+
+YY8dis$Type <- factor(YY8dis$Type)
+YY8dis$Mat_no<- factor(YY8dis$Mat_no)
+df<-data.frame(YY8dis$X,YY8dis$Y)
+
+```
+
+## b.描画{.tabset .tabset-fade .tabset-pills}
+
+###  Types
+　器種別の遺物分布を描画する
+```{r distribution2}
+
+nomal<-ggplot(data=YY8dis)+
+  scale_shape_manual(values=1:nlevels(YY8dis$Type)) +
+  geom_point(aes(x=X,y=Y,shape=Type))+
+  theme_minimal()+
+  coord_fixed()+
+  labs(x = NULL, y = NULL)
+
+nomal
+
+```
+
+###  Refit lines
+　器種別の遺物分布の上に接合線を追加する
+```{r distribution3}
+
+Refline<-YY8dis %>%
+  select_("Refit","X","Y")%>%
+  drop_na()
+
+Ref<-ggplot(data=YY8dis)+
+  scale_shape_manual(values=1:nlevels(YY8dis$Type)) +
+  geom_point(aes(x=X,y=Y,shape=Type))+
+  geom_line(data=Refline,aes(x=X,y=Y,group =Refit))+
+  theme_minimal()+
+  coord_fixed()+
+  labs(x = NULL, y = NULL)
+
+Ref
+
+```
+
+###  Mateial No.
+　母岩分類ごとに結線する
+```{r distribution4}
+
+Matline<-YY8dis%>%
+  select_("Mat_no","X","Y")%>%
+  drop_na()
+
+Mat<-ggplot(data=Matline)+
+  scale_color_manual(values=1:nlevels(Matline$Mat_no)) +
+  scale_shape_manual(values=1:nlevels(Matline$Mat_no)) +
+  geom_point(aes(x=X,y=Y,shape=Mat_no,color=Mat_no))+
+  geom_line(data=Matline,lwd=2,aes(x=X,y=Y,group =Mat_no,color=Mat_no))+
+  theme_minimal()+
+  coord_fixed()+
+  labs(x = NULL, y = NULL)
+
+Mat
+
+```
+
+## c.遺物分布のクラスター分析{.tabset .tabset-fade .tabset-pills}
+　非階層クラスター分析（Kmeans法）により、遺物分布にまとまりがあるか分析します。
+
+###  3
+　３箇所にクラスタリング（Kmeans法）
+```{r cluster analuses1}
+
+set.seed(5)
+km<-kmeans(df, 3, iter.max = 1000,nstart = 100)
+
+#add plot
+df$cluster<-km$cluster
+
+hulls <- YY8dis %>%
+  mutate(cluster = km$cluster) %>%
+  group_by(cluster) %>%
+  slice(chull(X, Y))
+
+
+custom3<-nomal+
+  geom_polygon(data=hulls,
+               aes(X,Y, group=cluster,colour="gray90"),
+               alpha=0.05)+
+  scale_color_hue(name = "Cluster", labels = NULL ) 
+
+custom3
+```
+
+###  5
+　5箇所にクラスタリング（Kmeans法）
+```{r cluster analyses2}
+#　5箇所にクラスタリング(kmeans法)
+
+km5<-kmeans(df, 5, iter.max = 1000,nstart = 100)
+
+#add plot
+df$cluster<-km5$cluster
+
+hulls5 <- YY8dis %>%
+  mutate(cluster = km5$cluster) %>%
+  group_by(cluster) %>%
+  slice(chull(X, Y))
+
+
+custom5<-nomal+
+  geom_polygon(data=hulls5,
+               aes(X,Y, group=cluster,colour="gray90"),
+               alpha=0.05)+
+  scale_color_hue(name = "Cluster", labels = NULL ) 
+
+custom5
+
+```
+
+## d.描画結果の合成
+```{r distribution5}
+
+custom<-nomal+
+  geom_polygon(data=hulls5,
+               aes(X,Y, group=cluster,colour="gray90"),
+               alpha=0.05)+
+  geom_polygon(data=hulls,
+               aes(X,Y, group=cluster,colour="gray90"),
+               alpha=0.05)+
+  scale_color_hue(name = "Cluster", labels = NULL ) +
+  geom_point(aes(x=X,y=Y,shape=Type))+
+  geom_line(data=Refline,aes(x=X,y=Y,group =Refit))+
+  scalebar(dist= 500,dist_unit = "m",st.color = "white", transform = F,
+           location="bottomleft",x.min=-1500,x.max =2500,y.min = -1000, y.max = 2000 )+
+  annotate("text", x = -500, y= -1050, label = "4m")+
+  annotate("text", x = -1500,y= -1050, label = "0m")+
+  geom_segment(arrow=arrow(length=unit(3,"mm")), aes(x=-1000,xend=-1000,y=-1000,yend=-700), 
+               colour="black") +
+  annotate("text", x=-1000, y=-600, label="N", colour="black", size=5)
+
+
+custom
+
+```
+
+##  e.K関数法による平面分布パターンの分析{.tabset .tabset-fade .tabset-pills}
+　Ripleyの K関数法では各点から一定の距離(h)以内にある点の個数をカウントし、それを総点数と密度で除して基準化します。K統計量は距離hに従って変化することを利用し、モンテカルロ・シミュレーション結果（n=100）と比較して、ミクロなスケールとマクロなスケールで分布がどのような傾向にあるかを検討します。全点に対する分析では明瞭な密集傾向がみられ、集中地点間の比較では第三集中地点のみマクロスケールにおいて分散傾向がみられました。
+
+###  Riley's K function
+　遺物平面分布（全点）に対して、K関数法を実行。
+　
+```{r K function}
+
+set.seed(3)
+ppp <- ppp(YY8dis$X, YY8dis$Y, c(-1200,3000), c(-1000,2000),marks=YY8dis$Concentration%>%as.factor())
+kf<-Kest(ppp,rmax=1000,correction="Ripley")%>%
+  plot()　
+```
+
+###  Montecalro simulation
+　モンテカルロ・シュミュレーション結果との比較。
+　
+```{r simulation}
+# Check
+Kf <- envelope(ppp,Kest,rmax=1000,fix.marks = T,nsim=100)
+plot(Kf)
+
+```
+
+###  By concentrations
+　集中地点ごとに分けてK関数法を適用（第3集中地点は、マクロスケールで分散傾向を示す）。
+　
+```{r alltypes ppp}
+#　by concentrations
+#　集中地点ごとのK関数法
+plot(alltypes(ppp, "Kdot"))
+
+```
+
+# 6.PCA analysis / 器種組成の主成分分析{.tabset .tabset-fade .tabset-pills}
+　集中地点ごとの器種組成に対して主成分分析を行い、地点の特徴の把握を目指します。
+
+##  PCA実行/Scree plot
+　先に作成したデータに主成分分析を実行し、各主成分の得点をScrree plotで評価。
+　
+```{r PCA}
+PCAresult<-PCA(YY_PCA)  
+fviz_screeplot(PCAresult)
+
+```
+
+##  Contributions
+　各要素の主成分への寄与率を表示。
+### End Tabset
+
+```{r PCA2}
+fviz_contrib(PCAresult,  
+             choice = "var",  
+             axes =1, 
+             top = 10)
+```
+
+##  Results
+　分析結果をbiplotで出力
+```{r PCA3}
+fviz_pca_biplot(PCAresult)
+
+```
+
+#  7.Technique / 石刃・剥片分割技術の地点間変異{.tabset .tabset-fade .tabset-pills}
+　集中地点ごとに異なる石刃・剥片分割技術の様相を明らかにします。  
+　Barplotの描画には関数の定義を行います。
+
+##  関数の定義
+```{r barplot_difine functions}
+
+
+#棒グラフの描画用の関数を作成
+#data,i=x軸、j=y軸
+
+BarPlot1 <- function(data, i){
+  Data <- data[!is.na(data[,i]),]
+  VName1 = colnames(Data)[i]
+  
+  P <- Data %>%
+    dplyr::select_(VName1) %>%
+    table %>% as.data.frame() %>%
+    ggplot(aes(x =  ., y = Freq))+
+    geom_bar(stat = "identity")+
+    geom_text(aes(x = ., y = Freq,  label = Freq, vjust = -0.5), size = 5)+
+    theme_classic(base_size = 18)+
+    labs(title = colnames(Data)[i] , y = "")
+  
+  print(P) #
+  
+}
+
+#==============
+BarPlot2 <- function(data, i, j){
+  
+  Data <- data[!is.na(data[,i]),]
+  VName1 = colnames(Data)[i]
+  VName2 = colnames(Data)[j] 
+  
+  P <- Data %>%
+    dplyr::group_by_(VName1) %>%
+    dplyr::select_(VName2) %>%
+    table %>% as.data.frame() %>%
+    ggplot(aes_string(x =  VName1, y = "Freq", fill = VName2))+
+    geom_bar(stat = "identity", position = "dodge")+
+    geom_text(aes_string(x = VName1, y = "Freq",label = "Freq", vjust = -0.5,
+                         group = VName2),
+              position = position_dodge(width = 0.9), size = 5)+
+    theme_classic(base_size = 18)+
+    labs(title = paste(VName1, " * ", VName2) , x = "", y = "")
+  
+  print(P)
+  
+}
+
+#============
+BarPlot3 <- function(data, i, j){
+  
+  Data <- data[!is.na(data[,i]),]
+  VName1 = colnames(Data)[i]
+  VName2 = colnames(Data)[j] 
+  
+  P <- Data %>%
+    dplyr::group_by_(VName1) %>%
+    dplyr::select_(VName2) %>%
+    table %>% as.data.frame()%>%
+    dplyr::arrange_(VName1)%>%
+    dplyr::group_by_(VName1)%>%
+    dplyr::mutate(Pos = cumsum(Freq) - (Freq * 0.5))%>%
+    ggplot(aes_string(x =  paste("reorder(x = ", VName1, ",X = Freq, FUN = sum)"), y = "Freq", fill = VName2))+
+    geom_bar(stat = "identity", position = "stack", alpha = 0.7)+
+    coord_flip()+
+    guides(fill = guide_legend(reverse = TRUE))+
+    geom_text(aes(label = Freq, y = Pos), size = 5)+
+    theme_classic(base_size = 18)+
+    theme(panel.grid.major = element_line(color = "lightgray"),
+          panel.grid.major.y = element_blank(),
+          plot.background = element_rect(color = "gray", size = 1))+
+    labs(title = paste(VName1, " * " ,VName2), x = "", y = "")
+  
+  print(P)
+  
+}
+
+#===============
+
+BarPlot4 <- function(data, i, j, type){
+  
+  Data <- data[!is.na(data[,i]),]
+  VName1 = colnames(Data)[i]
+  VName2 = colnames(Data)[j] 
+  switch (type,
+          "dodge" = BarPlot2(Data, i, j),
+          "stack" = BarPlot3(Data, i, j))
+}
+```
+
+##  接合資料の素材形態
+　接合資料の素材となる石器形態について頻度を集中地点ごとに示す。
+```{r barplot}
+
+YY8j<- read.csv("YY8-dataset/YY8-Refitted.csv",encoding = "UTF-8")%>%
+  data.frame()
+
+BarPlot4(YY8j, 3, 4, type = "dodge")
+
+```
+
+##  剥離類型の出現頻度
+　素材に対する分割剥離技術の類型について出現頻度を集中地点ごとに示す。
+```{r barplot2}
+BarPlot4(YY8j, 1, 3, type = "stack")
+```
+
+
+#  8.Afterword / おわりに
+
+　本稿で用いたデータの内、属性表（CSV）の作成にかかる石器の計測計量・観察などは宮城旧石器研究会の活動および鈴木秋平の修士論文（東北大学大学院 2018年度）によるものです。  
+　
+Rによる解析および本稿の文責は熊谷にあります。本稿の分析・Rスクリプトおよび論文に関してご意見・ご指摘をお待ちしております。
+
+
+
+
