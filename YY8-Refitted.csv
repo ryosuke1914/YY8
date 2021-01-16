@@ -16,10 +16,10 @@ B,14,1,BL
 A,15,1,BL
 B,16,1,FL
 BCD,17,1,FL
-折れ面,25,1,FL
+Fractio,25,1,FL
 BCD,18,1,BL
 C,19,1,FL
-被熱破損,20,3,BL
+Burned,20,3,BL
 F,21,2,CO
 F,22,3,FL
 BCD,23,1,BL
