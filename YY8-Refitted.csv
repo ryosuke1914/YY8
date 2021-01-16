@@ -7,7 +7,7 @@ B,5,3,FL
 B,6,3,FL
 F,7,2,CO
 B,8,1,FL
-折れ面,9,3,FL
+Burned,9,3,FL
 B,10,3,BL
 A,11,1,BL
 B,12,1,FL
@@ -16,7 +16,7 @@ B,14,1,BL
 A,15,1,BL
 B,16,1,FL
 BCD,17,1,FL
-Fractio,25,1,FL
+Fraction,25,1,FL
 BCD,18,1,BL
 C,19,1,FL
 Burned,20,3,BL
