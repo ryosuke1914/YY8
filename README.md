@@ -9,13 +9,17 @@ We are going to publish here the R scripts and data for our paper,  "Towards str
 
 *csv, attribution of lithic artifact from YY8 site.
 
-*Rmd, source codes of analysis
+*Rmd, source codes of analysis. pdf and HTML.
 
 *HTML, source codes and graphics outputted from Rmd.
 
 *pdf, source codes and graphics outputted from Rmd.
 
 # Author
+
+# Note
+
+I don't test environments under Linux and Mac.
 
 * 熊谷亮介 Ryosuke KUMAGAI, 鈴木秋平 Shuhei SUZUKI
 
@@ -26,4 +30,3 @@ We are going to publish here the R scripts and data for our paper,  "Towards str
 # License
 
  データの公開にあたり、宮城県加美町教育委員会の承諾を得ています。
- 
