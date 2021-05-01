@@ -22,3 +22,8 @@ We are going to publish here the R scripts and data for our paper,  "Towards str
 * Miyagi Prefecture
 
 * E-mail ryosuke.kumagai28　gmail.com
+
+# License
+
+ データの公開にあたり、宮城県加美町教育委員会の承諾を得ています。
+ 
