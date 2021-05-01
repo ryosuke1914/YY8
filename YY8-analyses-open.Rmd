@@ -1,6 +1,6 @@
 ---
-title: "Study on the strategic behaviors of Blade industry at Yakuraisan No. 8 site"
-subtitle: 薬來山No.8遺跡における石刃石器群の行動戦略ー石刃・剥片分割の行動論的意義ー 宮城考古学第23号　公開用　分析データ
+title: "Towards Strategic Behavior on Productive Consumption of Blade Industry at Yakuraisan No.8 Site"
+subtitle: 薬莱山No.8遺跡における石刃石器群の行動戦略ー石刃・剥片分割の行動論的意義ー 宮城考古学第23号　公開用　分析データ
 author: "熊谷亮介・鈴木秋平"
 date: "`r Sys.Date()`"
 output:
@@ -10,7 +10,6 @@ output:
 ---
 ```{r setup, include=FALSE}
 library(knitr)
-library(rmdformats)
 
 ## Global options
 options(max.print="75")
@@ -28,16 +27,17 @@ opts_knit$set(width=75)
 # 1.Introduction / はじめに {.tabset .tabset-fade .tabset-pills}  
 ## Readme  
 
-　本稿は宮城考古学第23号に掲載された**「薬來山No.8遺跡における石刃石器群の行動戦略ー石刃・剥片分割の行動論的意義ー」** の分析に用いたデータ（csv)とRのスクリプトを再現性・透明性を確保するために公開するものです。  
+　本稿は宮城考古学第23号に掲載された**「薬莱山No.8遺跡における石刃石器群の行動戦略ー石刃・剥片分割の行動論的意義ー」** の分析に用いたデータ（csv)と統計解析ソフトRのスクリプトを公開するものです。
+　旧石器研究における再現性と透明性を確保し、分析を検証可能なものとすることを目的としています。  
 　
-コード実行またはRmdファイルからknitする場合、パッケージのインストールのほか、エクセルファイルを含むデータをGithubおよび公開されたWebサイトからダウンロードする工程があります。インターネットに接続した環境で利用してください。  また、最新のR言語をインストールしたうえで利用してください。
+コードを実行(Rmdファイルからknit）する場合、CRANから各種パッケージをインストールするほか、エクセルファイルを含むデータをGithubや日本旧石器学会のWebサイトからダウンロードする工程があります。インターネットに接続した環境で利用してください。  また、最新のR言語をインストールしたうえで利用してください。
 
 ## Environment
 2021/1/31
 
 * Windows 10 Home 1909
 
-* R version ‘4.0.3’ (Bunny-Wunnies Freak Out)　[link](https://cran.r-project.org/src/base/R-4)
+* R version ‘4.0.2’ (Bunny-Wunnies Freak Out)　[link](https://cran.r-project.org/src/base/R-4)
 
 * RStudio
 Version 1.3.1093 [link](www.rstudio.com)
@@ -60,7 +60,7 @@ Version 1.3.1093 [link](www.rstudio.com)
 　下記のスクリプトでは、あなたの環境にインストールされていないパッケージを検索・抽出してインストールし、また一括で呼び出し（library)します。
 
 ```{r install.pakages}
-targetPackages <- c("formatR","RCurl","spatstat","cluster","tidyr","xtable","DT","tidyverse",   
+targetPackages <- c("DT","formatR","RCurl","spatstat","cluster","tidyr","xtable","tidyverse",   
                     "ggmap","ggspatial","sf","shadowtext","ggforce","patchwork","readxl",
                     "maptools","spsurvey","readr","MASS","ggsn","rio","FactoMineR","factoextra","rmdformats","stringr","rmarkdown")
 newPackages <- targetPackages[!(targetPackages %in% installed.packages()[,"Package"])]
@@ -69,10 +69,10 @@ for(package in targetPackages) library(package, character.only = T)
 
 ```
 
-## Downroading Data
-　専用のフォルダをWD内に作成し、各種データをダウンロード。
+## Downloading Data
+　専用のフォルダをワーキングディレクトリ（WD)内に作成し、各種データをダウンロード。
 
-```{r downroad}
+```{r download}
 
 #　データを保存するためのフォルダをWD内に作成
 #　再帰処理回避のため既にある場合は省略
@@ -104,7 +104,7 @@ download.file("http://palaeolithic.jp/data/Excel/02_07_Tohoku.xls",
 
 # 3.Maps / 遺跡地図の描画
 　山形県・宮城県における旧石器時代遺跡の分布図を、日本旧石器学会が発行するDBをもとに作成します。  
-　また、薬來山麓の旧石器時代遺跡群を拡大した図を作成し、レイアウトします。
+　また、薬莱山麓の旧石器時代遺跡群を拡大した図を作成し、レイアウトします。
 
 ## a.データの加工{.tabset .tabset-fade .tabset-pills}
 
@@ -174,7 +174,7 @@ miyagi<-jpn[jpn$NAME_1=="Miyagi",]%>%fortify()
 ## b.遺跡地図の作成{.tabset .tabset-fade .tabset-pills}
 ###  宮城県・山形県の広域地図
 　変換した緯度経度を元のデータに組み込み、両県の表を結合。
-また、薬來山No.8遺跡のみマークを変えるため抽出。
+また、薬莱山No.8遺跡のみマークを変えるため抽出。
 ```{r maps 4}
 Miyagimap[10:11]<-m
 Yamagatamap[10:11]<-y
@@ -217,7 +217,7 @@ MY_sites<-
 MY_sites
 ```
 
-###  薬來山麓の拡大図
+###  薬莱山麓の拡大図
 　薬莱山麓の拡大図を描画します。各遺跡名も合わせて描画。
 ```{r maps5}
 
@@ -257,7 +257,7 @@ MY_sites+MY_site2 + plot_layout(ncol=2,widths = c(1,2))
 
 
 #  4.Tables / 出土遺物の組成表を作成
-　薬來山No.8遺跡出土石器の属性表を読み込み、各種集計表を作成します。
+　薬莱山No.8遺跡出土石器の属性表を読み込み、各種集計表を作成します。
 
 ```{r table1}
 
@@ -313,7 +313,8 @@ datatable(YY8b,
   deferRender = TRUE,
   dom = "frtiS",
   scrollY = 200,
-  scrollCollapse = TRUE 
+  scrollCollapse = TRUE ,
+  pageLength = 21
   ))
 
 ```
@@ -375,7 +376,7 @@ datatable(YY8i,
   deferRender = TRUE,
   dom = "frtiS",
   scrollY = 200,
-  scrollCollapse = TRUE
+  scrollCollapse = TRUE,pageLength = 11
   ))
 
 ```
@@ -383,26 +384,25 @@ datatable(YY8i,
 ###  Table 2b
 　集中地点ごとの石器器種出現頻度表（パーセンテージ）（第2表対応）　
 ```{r table4}
-YY8gpercentage <- as.data.frame(YY8g[-10, ]) %>% map_df(~.x/apply(YY8g[-10, ],2, sum))
+YY8j <-data.frame(t(YY8g[-10,]))%>%
+  map_df(~.x/rowSums(t(YY8g[-10,])))
 
-rownames(YY8gpercentage) <- Type[-10]
-colnames(YY8gpercentage) <- c(1, 2, 3)
+colnames(YY8j) <- Type[-10]
+rownames(YY8j) <- c(1, 2, 3)
 
 prepare3 <- htmltools::withTags(table(class = "display", thead(tr(th(rowspan = 2, 
-    "Type"), th(colspan = 3, "Concentration"), tr(lapply(rep(c("1", "2", "3"), 1), 
+    "Type"), th(colspan = 9, "Type"), tr(lapply(rep(c("BL", "CH", "CO", "FL", "PI", "SP", "Tools", "Retouched", "MF"), 1), 
     th))))))
 
-datatable(YY8gpercentage, caption = "Table 2b: 集中地点ごとの石器組成割合", container = prepare3, 
-    rownames = T, extensions = "Scroller", options = list(deferRender = TRUE, dom = "frtiS", 
-        scrollY = 200, scrollCollapse = TRUE)) %>% formatRound(columns = c("1", "2", 
-    "3"), digits = 3)   
+datatable(YY8j, caption = "Table 2b: 集中地点ごとの石器組成割合", container = prepare3,extensions = "Scroller", options = list(deferRender = TRUE, dom = "frtiS", 
+        scrollY = 200, scrollCollapse = TRUE)) %>% formatRound(columns = Type[-10], digits = 3)  
 
 ```
 
 *  主成分分析用のデータを作成
 ```{r,PCAdata}
-PCA<-rbind(YY8gpercentage,Refitted)
-rownames(PCA)<-Type
+
+PCA<-rbind(t(YY8j),Refitted)
 YY_PCA <- as.data.frame(t(PCA))
                  
 ```
@@ -410,16 +410,16 @@ YY_PCA <- as.data.frame(t(PCA))
 　母岩分類ごとの器種表を作成（第3表対応）
 ```{r material}
 
-YY8j <-YY8%>%
+YY8k <-YY8%>%
   filter(Memo!="Jyomon" & !is.na(X) & !is.na(Concentration), Mat_no<=16)%>%
   count(Concentration,Mat_no)%>%
   spread(Concentration,n)%>%
   column_to_rownames(var="Mat_no")
-YY8j[is.na(YY8j)] <- 0
+YY8k[is.na(YY8k)] <- 0
 
 
-table3<-data.frame(YY8j,apply(YY8j,1,sum))%>%
-  rbind(apply(YY8j,2,sum))
+table3<-data.frame(YY8k,apply(YY8k,1,sum))%>%
+  rbind(apply(YY8k,2,sum))
 colnames(table3)<- c(1:3,"SUM")
 rownames(table3)<-c(1:16,"SUM")
 
@@ -445,7 +445,7 @@ datatable(table3,
   deferRender = TRUE,
   dom = "frtiS",
   scrollY = 200,
-  scrollCollapse = TRUE
+  scrollCollapse = TRUE,pageLength = 17
   ))
 
 ```
@@ -766,17 +766,17 @@ BarPlot4 <- function(data, i, j, type){
 　接合資料の素材となる石器形態について頻度を集中地点ごとに示す。
 ```{r barplot}
 
-YY8j<- read.csv("YY8-dataset/YY8-Refitted.csv",encoding = "UTF-8")%>%
+YY8l<- read.csv("YY8-dataset/YY8-Refitted.csv",fileEncoding="UTF-8-BOM",)%>%
   data.frame()
 
-BarPlot4(YY8j, 3, 4, type = "dodge")
+BarPlot4(YY8l, 3, 4, type = "dodge")
 
 ```
 
 ##  剥離類型の出現頻度
 　素材に対する分割剥離技術の類型について出現頻度を集中地点ごとに示す。
 ```{r barplot2}
-BarPlot4(YY8j, 1, 3, type = "stack")
+BarPlot4(YY8l, 1, 3, type = "stack")
 ```
 
 
