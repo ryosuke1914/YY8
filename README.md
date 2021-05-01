@@ -6,7 +6,6 @@
 We are going to publish here the R scripts and data for our paper,  "Towards strategic behavior on productive consumption of  the Blade Industry at Yakuraisan No.8 Site. " in Journal of Miyagi archaeology.
 
 # Contents
-
 CSVは石器属性表です。RmdはPDFとHTMLへ書き出すもの2種類あります。
 *csv, attribution of lithic artifact from YY8 site.
 
