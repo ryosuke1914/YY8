@@ -25,3 +25,5 @@ CSVは石器属性表です。RmdはPDFとHTMLへ書き出すもの2種類あり
 # License
 公開した内容の著作権は宮城県考古学会に帰属します。
 データの公開にあたり、宮城県加美町教育委員会の承諾を得ています。
+
+The copyright of the published content belongs to the Miyagi Archaeological Society. The data has been released with the consent of the Kami Town Board of Education, Miyagi Prefecture.
