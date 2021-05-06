@@ -18,8 +18,6 @@ CSVは石器属性表です。RmdはPDFとHTMLへ書き出すもの2種類あり
 # Author
 * 熊谷亮介 Ryosuke KUMAGAI, 鈴木秋平 Shuhei SUZUKI
 
-* Miyagi Prefecture
-
 * E-mail ryosuke.kumagai28　gmail.com
 
 # License
